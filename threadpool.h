@@ -1,5 +1,6 @@
 #include <queue>
 #include <pthread.h>
+#include <stdexcept>
 
 #define array_size unsigned long long
 
@@ -27,8 +28,6 @@ private:
     pthread_mutex_t taskFetchMutex = PTHREAD_MUTEX_INITIALIZER;
 
     static void* threadLoop(void* p) {
-
-        //std::cout << "GOT HERE" << std::endl;
 
         static_cast<ThreadPool*>(p)->fetchTasks();
 
@@ -80,21 +79,23 @@ public:
     ~ThreadPool() {
 
         if(!isOver) {
-
             throw std::runtime_error("awaitTermination not called");
-
         }
 
-        delete threads;
+        delete[] threads;
         
         pthread_mutex_destroy(&taskFetchMutex);
     }
     
     void awaitTermination() {
- 
+
+        if(isOver)
+            return; //  If a user calls awaitTermination twice, the pthread_join call on a joined
+                    // thread will crash everything :(
+
         isOver = true; 
     
-        for(array_size i = 0; i < 10; ++i) {
+        for(array_size i = 0; i < count; ++i) {
             pthread_join(threads[i], NULL);
         }
     }
